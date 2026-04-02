@@ -2,6 +2,8 @@
 
 > **Because your CI/CD pipeline deserves to know that Mercury is in retrograde.**
 
+WORK IN PROGRESS! 
+
 [![Python ≥ 3.10](https://img.shields.io/badge/python-%E2%89%A53.10-blue)](https://www.python.org/)
 [![MCP](https://img.shields.io/badge/protocol-MCP-purple)](https://modelcontextprotocol.io/)
 [![Data: NASA JPL](https://img.shields.io/badge/data-NASA%20JPL%20DE421-red)](https://ssd.jpl.nasa.gov/)
@@ -167,6 +169,6 @@ pytest
 
 ## Disclaimer
 
-This software provides astrological analysis for entertainment purposes. Planetary positions are computed from real astronomical data. The causal relationship between Mercury's ecliptic velocity and your deployment success rate has not been peer-reviewed. The author accepts no liability for outages, regressions, or existential crises arising from following or ignoring this advice.
+Planetary positions are computed from real astronomical data. The causal relationship between Mercury's ecliptic velocity and your deployment success rate has not been peer-reviewed. The author accepts no liability for outages, regressions, or existential crises arising from following or ignoring this advice.
 
 That said: Mercury has been retrograde during a statistically suspicious number of incidents. We're just saying.
