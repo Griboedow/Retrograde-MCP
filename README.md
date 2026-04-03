@@ -143,25 +143,52 @@ Override with the `RETROGRADE_CACHE_DIR` environment variable:
 ## Usage examples
 
 **"Should I deploy right now?"**
-> `should_i_do_it("deploy to production")`
-> TBD
+> `should_i_do_it`
+> `get_cosmic_risk_score`
+>
+> *Cosmic Risk Score: 🟠 ELEVATED (45/100)*
+>
+> *Blocking factors:*
+> - *Geomagnetic storm (G1) in progress (Kp=5.7) — mental clarity across the team may be compromised*
+>
+> *Caution factors:*
+> - *Full Moon 🌕 — maximum lunar intensity, not favorable for deployments*
+>
+> *In your favor: Mercury, Mars, and Venus are all direct and supportive.*
+>
+> *Recommendation: Hold off. Use `get_favorable_window` to find a better moment.*
 
 **"Why did our API go down?"**
 > `explain_incident("API gateway returned 504s for 30 minutes starting at 14:00 UTC")`
-> TBD
+>
+> *All planets are currently direct. The incident represents a triumph of purely human error, unassisted by celestial interference.*
+>
+> *Contributing factors:*
+> - *Uranus (stationary at 58.51°) — disruption of unexpected outages, paradigm shifts, zero-day exploits*
+> - *Neptune (stationary at 1.94°) — unclear requirements, scope creep, ambient confusion*
+> - *Full Moon (98% illumination) — amplified cosmic instability*
+> - *Kp-index: 5.7 — G1 geomagnetic storm in progress*
+>
+> *Remediation:*
+> 1. *Document the incident with planetary positions recorded above*
+> 2. *Schedule the post-mortem during a Mercury-direct period (you're clear — Mercury went direct on March 20)*
+> 3. *Implement fixes during a waxing Moon phase for maximum cosmic support*
+> 4. *Use `retrograde_history` to check if similar incidents correlate with the same planetary configurations*
 
 **"When can I safely ship next?"**
-> `get_favorable_window`
-> `get_cosmic_risk_score`
-> 
-> *Optimal window: April 19–29, 2026 — zero retrograde planets, 11 days of cosmic cooperation.*
+> `get_favorable_window` · `get_cosmic_risk_score`
 >
-> *Today (April 3) is also viable at 30/100 risk (moderate). The only factors are Uranus and Neptune being stationary (+10) and a Full Moon (+20). No planets are retrograde.*
+> *Next favorable window: April 19–29, 2026 — 11 days of cosmic cooperation with zero retrograde planets.*
 >
-> *If the release is ready and tested, today is fine. If you want the planets fully on your side, hold until April 19.*
+> *Today (April 3) scores 🟠 ELEVATED (45/100):*
+> - *Uranus & Neptune stationary (+10)*
+> - *Full Moon (+20)*
+> - *G1 geomagnetic storm, Kp=5.7 (+15)*
+>
+> *No planets are retrograde, which is good — but the Full Moon and active geomagnetic storm push the risk up. If the release is ready and well-tested with solid rollback plans, today is survivable. If you can wait, April 19 is when the cosmos fully clear out for you.*
 
 **"Give me the morning briefing"**
-> `get_daily_briefing()`
+> `get_daily_briefing`
 >
 > *Cosmic Risk: MODERATE (27/100)*
 >
@@ -170,9 +197,17 @@ Override with the `RETROGRADE_CACHE_DIR` environment variable:
 >
 > *Proceed mindfully. Conditions are workable. Prioritize well-tested releases over experiments. Keep rollback procedures fresh.*
 
-**"What was Mercury doing during our outages last year?"**
-> `retrograde_history(planet="mercury", years=2)`
-> TBD
+**"What was Mercury doing during our outages last months?"**
+> `retrograde_history`
+>
+> Mercury was retrograde from February 26 to March 20, 2026 — covering most of last month. That's 22 days where Mercury's apparent motion was reversed, which, according to the ephemeris data, means your March outages had a cosmically valid root cause.
+>
+>The two other retrograde periods in the past year were:
+>Jul 18 – Aug 11, 2025 (24 days)
+>Nov 9 – Nov 29, 2025 (19 days)
+>
+>If your outages clustered in early-to-mid March, they fell squarely within retrograde window #3. Cross-reference your incident log timestamps against Feb 26 – Mar 20 and you may find a suspicious overlap.
+
 ---
 
 ## Development
