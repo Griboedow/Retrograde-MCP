@@ -254,10 +254,10 @@ def find_retrograde_periods(
 
     for i in range(len(speeds) - 1):
         s0, s1 = speeds[i], speeds[i + 1]
-        if s0 >= STATIONARY_THRESHOLD and s1 < -STATIONARY_THRESHOLD:
+        if s0 >= 0 and s1 < 0:
             # Entering retrograde — binary search for exact crossing
             retro_start = _refine_transition(planet_key, times[i], times[i + 1], "start")
-        elif s0 < -STATIONARY_THRESHOLD and s1 >= STATIONARY_THRESHOLD:
+        elif s0 < 0 and s1 >= 0:
             if retro_start is not None:
                 retro_end = _refine_transition(planet_key, times[i], times[i + 1], "end")
                 duration = (retro_end - retro_start).days

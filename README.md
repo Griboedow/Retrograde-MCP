@@ -1,8 +1,6 @@
-# RetrogradeMCP
+# Retrograde MCP
 
 > **Because your CI/CD pipeline deserves to know that Mercury is in retrograde.**
-
-WORK IN PROGRESS! 
 
 [![Python ≥ 3.10](https://img.shields.io/badge/python-%E2%89%A53.10-blue)](https://www.python.org/)
 [![MCP](https://img.shields.io/badge/protocol-MCP-purple)](https://modelcontextprotocol.io/)
@@ -11,9 +9,22 @@ WORK IN PROGRESS!
 
 A **Model Context Protocol** server that surfaces real astronomical data — planetary positions from the NASA JPL DE421 ephemeris and geomagnetic activity from NOAA SWPC — wrapped in the kind of rigorous astrological commentary your incident reports have been missing.
 
-No fake planetary positions. No hardcoded retrograde dates. Every result is computed from actual ephemeris data at query time.
+No fake planetary positions. No hardcoded retrograde dates. Every result is computed from actual ephemeris data at query time. If Mars suddenly goes rogue out of schedule, you WILL know.
 
----
+- [Retrograde MCP](#retrograde-mcp)
+  - [What it does](#what-it-does)
+    - [Analysis methodology](#analysis-methodology)
+  - [Installation](#installation)
+    - [Prerequisites](#prerequisites)
+    - [With `uv` (recommended)](#with-uv-recommended)
+    - [With `pip`](#with-pip)
+    - [From source](#from-source)
+  - [Claude Desktop configuration](#claude-desktop-configuration)
+    - [Ephemeris cache location](#ephemeris-cache-location)
+  - [Usage examples](#usage-examples)
+  - [Development](#development)
+  - [Data sources](#data-sources)
+  - [Disclaimer](#disclaimer)
 
 ## What it does
 
@@ -133,19 +144,35 @@ Override with the `RETROGRADE_CACHE_DIR` environment variable:
 
 **"Should I deploy right now?"**
 > `should_i_do_it("deploy to production")`
+> TBD
 
 **"Why did our API go down?"**
 > `explain_incident("API gateway returned 504s for 30 minutes starting at 14:00 UTC")`
+> TBD
 
 **"When can I safely ship next?"**
-> `get_favorable_window(max_retrograde_planets=1)`
+> `get_favorable_window`
+> `get_cosmic_risk_score`
+> 
+> *Optimal window: April 19–29, 2026 — zero retrograde planets, 11 days of cosmic cooperation.*
+>
+> *Today (April 3) is also viable at 30/100 risk (moderate). The only factors are Uranus and Neptune being stationary (+10) and a Full Moon (+20). No planets are retrograde.*
+>
+> *If the release is ready and tested, today is fine. If you want the planets fully on your side, hold until April 19.*
 
 **"Give me the morning briefing"**
 > `get_daily_briefing()`
+>
+> *Cosmic Risk: MODERATE (27/100)*
+>
+> *Stationary: Uranus, Neptune. Direct: Mercury, Venus, Mars, Jupiter, Saturn.*
+> *Full Moon — 98% illumination. Kp-index: 1.7 — Quiet.*
+>
+> *Proceed mindfully. Conditions are workable. Prioritize well-tested releases over experiments. Keep rollback procedures fresh.*
 
 **"What was Mercury doing during our outages last year?"**
 > `retrograde_history(planet="mercury", years=2)`
-
+> TBD
 ---
 
 ## Development
