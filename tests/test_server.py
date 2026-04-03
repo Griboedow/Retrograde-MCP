@@ -171,6 +171,70 @@ class TestAngularDiff:
         assert abs(result - (-2.0)) < 1e-9
 
 
+class TestFindRetrogradePeriods:
+    """
+    Test find_retrograde_periods() using mocked speed data that mirrors the
+    published Mercury retrograde period of March 15 – April 7, 2025.
+
+    Sources: astro-seek.com, astrostyle.com, CHANI — all agree on these dates.
+    """
+
+    def test_mercury_retrograde_march_2025(self):
+        from datetime import datetime, timezone, timedelta
+        from retrograde_mcp import planets as p_mod
+
+        # Published dates for the Mercury retrograde closest to this code's creation.
+        RETRO_START = datetime(2025, 3, 15, tzinfo=timezone.utc)
+        RETRO_END   = datetime(2025, 4, 7,  tzinfo=timezone.utc)
+
+        search_start = datetime(2025, 3, 1,  tzinfo=timezone.utc)
+        search_end   = datetime(2025, 4, 20, tzinfo=timezone.utc)
+
+        # --- helpers for JD ↔ datetime conversion ----------------------------
+        _J2000 = datetime(2000, 1, 1, 12, tzinfo=timezone.utc)
+
+        def _dt_to_jd(dt):
+            return 2451545.0 + (dt - _J2000).total_seconds() / 86400.0
+
+        # --- minimal Skyfield Time stand-in ----------------------------------
+        class FakeTime:
+            def __init__(self, dt):
+                self._dt = dt
+                self.tt = _dt_to_jd(dt)
+
+            def utc_datetime(self):
+                return self._dt
+
+        mock_ts = MagicMock()
+        mock_ts.from_datetime.side_effect = lambda dt: FakeTime(
+            dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        )
+
+        # --- speed model: negative inside the retrograde window --------------
+        def fake_speed(planet_key, t):
+            dt = t._dt if hasattr(t, "_dt") else _J2000 + timedelta(
+                seconds=(t.tt - 2451545.0) * 86400
+            )
+            return -1.5 if RETRO_START <= dt < RETRO_END else 1.5
+
+        # _refine_transition is patched to return the exact published dates
+        # so we verify the period assembly logic, not binary-search internals.
+        with patch.object(p_mod, "_get_ephemeris", return_value=(mock_ts, MagicMock())):
+            with patch.object(p_mod, "_ecliptic_speed", side_effect=fake_speed):
+                with patch.object(
+                    p_mod, "_refine_transition",
+                    side_effect=[RETRO_START, RETRO_END],
+                ):
+                    periods = p_mod.find_retrograde_periods("mercury", search_start, search_end)
+
+        assert len(periods) == 1, f"Expected 1 retrograde period, got {len(periods)}"
+        period = periods[0]
+        assert period["planet"] == "mercury"
+        assert period["start"] == "2025-03-15"
+        assert period["end"]   == "2025-04-07"
+        assert period["duration_days"] == (RETRO_END - RETRO_START).days  # 23
+
+
 class TestLunarPhase:
     """Test get_lunar_phase with mocked Skyfield."""
 
