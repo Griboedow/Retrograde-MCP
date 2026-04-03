@@ -32,8 +32,26 @@ _eph = None
 CACHE_ENV = "RETROGRADE_CACHE_DIR"
 DEFAULT_CACHE = Path.home() / ".retrograde-mcp"
 
-# Threshold (degrees/day) below which a planet is considered "stationary"
-STATIONARY_THRESHOLD = 0.05
+# Per-planet thresholds (degrees/day): if |speed| is below the threshold for
+# that planet, it is considered "stationary" (near the retrograde reversal point).
+# Values follow the Astrodienst / professional-ephemeris convention; outer planets
+# move so slowly that a single flat threshold would misclassify them.
+#   Mercury  5 arcmin/day ≈ 0.083°/day
+#   Venus    3 arcmin/day ≈ 0.050°/day
+#   Mars     1.5 arcmin/day ≈ 0.025°/day
+#   Jupiter  1 arcmin/day ≈ 0.017°/day
+#   Saturn   1 arcmin/day ≈ 0.017°/day  (max geocentric speed ~0.034°/day)
+#   Uranus   0.33 arcmin/day ≈ 0.006°/day (max ~0.017°/day)
+#   Neptune  0.17 arcmin/day ≈ 0.003°/day (max ~0.009°/day)
+STATIONARY_THRESHOLDS: dict[str, float] = {
+    "mercury": 0.083,
+    "venus":   0.050,
+    "mars":    0.025,
+    "jupiter": 0.017,
+    "saturn":  0.017,
+    "uranus":  0.006,
+    "neptune": 0.003,
+}
 
 
 def _get_ephemeris():
@@ -120,7 +138,7 @@ def planet_motion_status(planet_key: str, t) -> str:
     Return 'retrograde', 'stationary', or 'direct' for a planet at time *t*.
     """
     speed = _ecliptic_speed(planet_key, t)
-    if abs(speed) < STATIONARY_THRESHOLD:
+    if abs(speed) < STATIONARY_THRESHOLDS[planet_key]:
         return "stationary"
     return "retrograde" if speed < 0 else "direct"
 
@@ -143,7 +161,7 @@ def get_all_planet_statuses(dt: Optional[datetime] = None) -> list[dict]:
     results = []
     for planet_key in SKYFIELD_BODIES:
         speed = _ecliptic_speed(planet_key, t)
-        if abs(speed) < STATIONARY_THRESHOLD:
+        if abs(speed) < STATIONARY_THRESHOLDS[planet_key]:
             status = "stationary"
         elif speed < 0:
             status = "retrograde"
@@ -348,7 +366,7 @@ def find_next_favorable_window(
         # Count retrograde planets
         retrograde = [
             p for p in SKYFIELD_BODIES
-            if _ecliptic_speed(p, t) < -STATIONARY_THRESHOLD
+            if _ecliptic_speed(p, t) < -STATIONARY_THRESHOLDS[p]
         ]
         n_retro = len(retrograde)
 

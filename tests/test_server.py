@@ -126,7 +126,7 @@ class TestPlanetMotionStatus:
     def test_stationary_when_speed_near_zero(self):
         from retrograde_mcp import planets as p_mod
 
-        with patch.object(p_mod, "_ecliptic_speed", return_value=0.02):
+        with patch.object(p_mod, "_ecliptic_speed", return_value=0.010):
             with patch.object(p_mod, "_get_ephemeris", return_value=(MagicMock(), MagicMock())):
                 result = p_mod.planet_motion_status("saturn", MagicMock())
         assert result == "stationary"
@@ -134,14 +134,14 @@ class TestPlanetMotionStatus:
     def test_stationary_threshold_boundary(self):
         from retrograde_mcp import planets as p_mod
 
-        # Just at threshold → still stationary
-        with patch.object(p_mod, "_ecliptic_speed", return_value=p_mod.STATIONARY_THRESHOLD - 0.001):
+        # Just below venus threshold → stationary
+        with patch.object(p_mod, "_ecliptic_speed", return_value=p_mod.STATIONARY_THRESHOLDS["venus"] - 0.001):
             with patch.object(p_mod, "_get_ephemeris", return_value=(MagicMock(), MagicMock())):
                 result = p_mod.planet_motion_status("venus", MagicMock())
         assert result == "stationary"
 
-        # Just above threshold → direct
-        with patch.object(p_mod, "_ecliptic_speed", return_value=p_mod.STATIONARY_THRESHOLD + 0.001):
+        # Just above venus threshold → direct
+        with patch.object(p_mod, "_ecliptic_speed", return_value=p_mod.STATIONARY_THRESHOLDS["venus"] + 0.001):
             with patch.object(p_mod, "_get_ephemeris", return_value=(MagicMock(), MagicMock())):
                 result = p_mod.planet_motion_status("venus", MagicMock())
         assert result == "direct"

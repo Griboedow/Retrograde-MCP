@@ -43,9 +43,9 @@ No fake planetary positions. No hardcoded retrograde dates. Every result is comp
 ### Analysis methodology
 
 **Planetary retrograde detection** uses geocentric ecliptic longitude computed from the NASA JPL DE421 ephemeris (downloaded automatically via [Skyfield](https://rhodesmill.org/skyfield/)). A planet is classified as:
-- **Retrograde** when its ecliptic longitude decreases at > 0.05°/day
-- **Stationary** when the rate of change is < 0.05°/day (transition period)
-- **Direct** otherwise
+- **Retrograde** when its ecliptic longitude is decreasing (speed < 0) and the absolute rate exceeds the planet's stationary threshold
+- **Stationary** when the absolute rate of change falls below a per-planet threshold (the brief reversal period before/after retrograde) — thresholds follow professional-ephemeris convention: Mercury 0.083°/day, Venus 0.050°/day, Mars 0.025°/day, Jupiter/Saturn 0.017°/day, Uranus 0.006°/day, Neptune 0.003°/day
+- **Direct** when its ecliptic longitude is increasing and the absolute rate exceeds the planet's stationary threshold
 
 **Lunar phase** is computed from the angular separation between the Moon and the Sun in ecliptic coordinates, also from DE421.
 
