@@ -40,7 +40,7 @@ from .planets import (
     find_next_favorable_window,
     SKYFIELD_BODIES,
 )
-from .space_weather import fetch_current_kp, kp_storm_level
+from .space_weather import fetch_current_kp, fetch_kp_for_date, kp_storm_level
 from .interpretations import (
     PLANET_DISPLAY,
     PLANET_DOMAINS,
@@ -76,6 +76,16 @@ mcp = FastMCP(
 
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _parse_date(date: Optional[str], fallback: datetime) -> datetime:
+    """Parse an ISO 8601 date string into a UTC datetime, or return *fallback*."""
+    if date is None:
+        return fallback
+    dt = datetime.fromisoformat(date)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def _status_line(info: dict) -> str:
@@ -136,9 +146,9 @@ def _planet_risk_score(statuses: list[dict]) -> int:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def get_planetary_status() -> str:
+def get_planetary_status(date: Optional[str] = None) -> str:
     """
-    Return the current motion status (direct, retrograde, or stationary) of all
+    Return the motion status (direct, retrograde, or stationary) of all
     tracked planets — Mercury through Neptune — based on real JPL ephemeris data.
 
     Each planet entry includes its ecliptic longitude, daily speed, domains of
@@ -146,8 +156,15 @@ def get_planetary_status() -> str:
     motion.
 
     Data source: NASA JPL DE421 ephemeris via Skyfield.
+
+    Args:
+        date: Optional date to evaluate (ISO 8601 format, e.g. "2026-03-10").
+              If not specified, uses the current date/time.
     """
-    now = _now_utc()
+    try:
+        now = _parse_date(date, _now_utc())
+    except ValueError:
+        return f"Invalid date format: '{date}'. Please use ISO 8601 (e.g. 2026-03-10)."
     statuses = get_all_planet_statuses(now)
 
     retrograde_count = sum(1 for s in statuses if s["status"] == "retrograde")
@@ -171,9 +188,9 @@ def get_planetary_status() -> str:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def get_lunar_phase() -> str:
+def get_lunar_phase(date: Optional[str] = None) -> str:
     """
-    Return the current lunar phase with illumination percentage and a software
+    Return the lunar phase with illumination percentage and a software
     development interpretation.
 
     New Moon → poor time for deployments.
@@ -182,8 +199,15 @@ def get_lunar_phase() -> str:
     Waning phases → good for cleanup and review.
 
     Data source: NASA JPL DE421 ephemeris via Skyfield.
+
+    Args:
+        date: Optional date to evaluate (ISO 8601 format, e.g. "2026-03-10").
+              If not specified, uses the current date/time.
     """
-    now = _now_utc()
+    try:
+        now = _parse_date(date, _now_utc())
+    except ValueError:
+        return f"Invalid date format: '{date}'. Please use ISO 8601 (e.g. 2026-03-10)."
     lunar = _compute_lunar_phase(now)
     phase_info = LUNAR_PHASES[lunar["phase_key"]]
 
@@ -247,7 +271,7 @@ def get_space_weather() -> str:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def get_cosmic_risk_score() -> str:
+def get_cosmic_risk_score(date: Optional[str] = None) -> str:
     """
     Compute a composite cosmic risk score from 0 (blissful ignorance) to 100
     (do not touch the keyboard).
@@ -256,14 +280,21 @@ def get_cosmic_risk_score() -> str:
       - Retrograde planets: +10 per planet (Mercury/Mars weighted higher)
       - Stationary planets: +5 per planet
       - Lunar phase modifier: −10 to +20
-      - Kp-index modifier: −5 to +50
+      - Kp-index modifier: −5 to +50 (when NOAA data is available for the date)
 
     Data sources: NASA JPL DE421 ephemeris + NOAA SWPC Kp-index.
+
+    Args:
+        date: Optional date to evaluate (ISO 8601 format, e.g. "2026-03-10").
+              If not specified, uses the current date/time.
     """
-    now = _now_utc()
+    try:
+        now = _parse_date(date, _now_utc())
+    except ValueError:
+        return f"Invalid date format: '{date}'. Please use ISO 8601 (e.g. 2026-03-10)."
     statuses = get_all_planet_statuses(now)
     lunar = _compute_lunar_phase(now)
-    kp_data = fetch_current_kp()
+    kp_data = fetch_kp_for_date(now)
 
     # Base score from planetary motion
     planet_score = _planet_risk_score(statuses)
@@ -298,9 +329,18 @@ def get_cosmic_risk_score() -> str:
         lines.append(
             f"  - Stationary: {', '.join(PLANET_DISPLAY[p] for p in stationary_planets)}"
         )
+    lines.append(
+        f"- Lunar phase ({LUNAR_PHASES[lunar['phase_key']]['name']}): **{lunar_modifier:+d}**"
+    )
+    if kp_data["error"] is None:
+        lines.append(
+            f"- Space weather (Kp={kp:.1f}, {kp_interp['level']}): **{kp_modifier:+d}**"
+        )
+    else:
+        lines.append(
+            "- Space weather: **N/A** (no NOAA Kp data available for this date)"
+        )
     lines += [
-        f"- Lunar phase ({LUNAR_PHASES[lunar['phase_key']]['name']}): **{lunar_modifier:+d}**",
-        f"- Space weather (Kp={kp:.1f}, {kp_interp['level']}): **{kp_modifier:+d}**",
         "",
         "### Interpretation",
     ]
@@ -356,16 +396,13 @@ def should_i_do_it(action: str, date: Optional[str] = None) -> str:
         date: Optional date to evaluate (ISO 8601 format, e.g. "2026-03-10").
               If not specified, uses the current date/time.
     """
-    if date is not None:
-        try:
-            now = datetime.fromisoformat(date).replace(tzinfo=timezone.utc)
-        except ValueError:
-            return f"Invalid date format: '{date}'. Please use ISO 8601 (e.g. 2026-03-10)."
-    else:
-        now = _now_utc()
+    try:
+        now = _parse_date(date, _now_utc())
+    except ValueError:
+        return f"Invalid date format: '{date}'. Please use ISO 8601 (e.g. 2026-03-10)."
     statuses = get_all_planet_statuses(now)
     lunar = _compute_lunar_phase(now)
-    kp_data = fetch_current_kp()
+    kp_data = fetch_kp_for_date(now)
 
     action_lower = action.lower()
     status_by_planet = {s["planet"]: s for s in statuses}
@@ -427,6 +464,11 @@ def should_i_do_it(action: str, date: Optional[str] = None) -> str:
         blockers.append(
             f"**Kp={kp:.1f}** ({kp_interp['level']}) — geomagnetic storm in progress. "
             "Mental clarity is compromised across the team."
+        )
+    elif kp_data["error"] is not None:
+        warnings.append(
+            "Space weather data is not available for this date from NOAA SWPC. "
+            "Re-check the Kp-index closer to the date."
         )
 
     # Final verdict
@@ -496,7 +538,7 @@ def explain_incident(description: str) -> str:
     now = _now_utc()
     statuses = get_all_planet_statuses(now)
     lunar = _compute_lunar_phase(now)
-    kp_data = fetch_current_kp()
+    kp_data = fetch_kp_for_date(now)
 
     desc_lower = description.lower()
     status_by_planet = {s["planet"]: s for s in statuses}
@@ -628,7 +670,10 @@ def explain_incident(description: str) -> str:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def get_favorable_window(max_retrograde_planets: int = 1) -> str:
+def get_favorable_window(
+    max_retrograde_planets: int = 1,
+    start_date: Optional[str] = None,
+) -> str:
     """
     Find the next calendar window where cosmic conditions are relatively favorable
     for deployments and major technical decisions.
@@ -637,15 +682,21 @@ def get_favorable_window(max_retrograde_planets: int = 1) -> str:
     - At most *max_retrograde_planets* planets are retrograde
     - The Moon is in a waxing crescent, first quarter, or waxing gibbous phase
 
-    The search covers the next 90 days. Calculations use real JPL ephemeris data.
+    The search covers 90 days from the start date. Calculations use real JPL
+    ephemeris data.
 
     Data source: NASA JPL DE421 ephemeris via Skyfield.
 
     Args:
         max_retrograde_planets: Maximum number of retrograde planets to tolerate
                                 in the window. Default is 1.
+        start_date: Optional start date for the search (ISO 8601 format,
+                    e.g. "2026-08-01"). If not specified, searches from now.
     """
-    now = _now_utc()
+    try:
+        now = _parse_date(start_date, _now_utc())
+    except ValueError:
+        return f"Invalid date format: '{start_date}'. Please use ISO 8601 (e.g. 2026-03-10)."
     window = find_next_favorable_window(
         from_dt=now,
         max_days=90,

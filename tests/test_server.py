@@ -365,6 +365,7 @@ class TestServerTools:
         monkeypatch.setattr(srv, "get_all_planet_statuses", lambda dt=None: _make_statuses())
         monkeypatch.setattr(srv, "_compute_lunar_phase", lambda dt=None: _make_lunar())
         monkeypatch.setattr(srv, "fetch_current_kp", lambda: _make_kp())
+        monkeypatch.setattr(srv, "fetch_kp_for_date", lambda dt=None: _make_kp())
 
     def test_get_planetary_status(self):
         from retrograde_mcp.server import get_planetary_status
