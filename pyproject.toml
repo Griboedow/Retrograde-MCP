@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "retrograde-mcp"
-version = "0.1.1"
+dynamic = ["version"]
 description = "MCP server: real planetary retrograde detection + NOAA space weather for CI/CD pipelines"
 authors = [{ name = "Griboedow (Nikolai Kochkin)" }]
 readme = "README.md"
@@ -35,6 +35,12 @@ retrograde-mcp = "retrograde_mcp.server:main"
 [project.urls]
 Homepage = "https://github.com/Griboedow/Retrograde-MCP"
 Issues = "https://github.com/Griboedow/Retrograde-MCP/issues"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+version_scheme = "no-guess-dev"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/retrograde_mcp"]
