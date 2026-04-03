@@ -481,7 +481,7 @@ def should_i_do_it(action: str, date: Optional[str] = None) -> str:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def explain_incident(description: str, date: Optional[str] = None) -> str:
+def explain_incident(description: str) -> str:
     """
     Receive an incident or outage description and return a rigorous astrological
     root-cause analysis.
@@ -492,16 +492,8 @@ def explain_incident(description: str, date: Optional[str] = None) -> str:
 
     Args:
         description: A description of the incident, outage, or anomaly.
-        date: Optional date to evaluate (ISO 8601 format, e.g. "2026-03-10").
-              If not specified, uses the current date/time.
     """
-    if date is not None:
-        try:
-            now = datetime.fromisoformat(date).replace(tzinfo=timezone.utc)
-        except ValueError:
-            return f"Invalid date format: '{date}'. Please use ISO 8601 (e.g. 2026-03-10)."
-    else:
-        now = _now_utc()
+    now = _now_utc()
     statuses = get_all_planet_statuses(now)
     lunar = _compute_lunar_phase(now)
     kp_data = fetch_current_kp()
