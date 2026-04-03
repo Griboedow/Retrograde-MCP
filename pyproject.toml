@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "retrograde-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server: real planetary retrograde detection + NOAA space weather for CI/CD pipelines"
 authors = [{ name = "Griboedow (Nikolai Kochkin)" }]
 readme = "README.md"
