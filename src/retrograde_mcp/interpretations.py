@@ -2,7 +2,7 @@
 Astrological interpretations, planet domains, and commentary for RetrogradeMCP.
 
 All planetary meanings are grounded in traditional astrological associations,
-playfully mapped to modern software development contexts.
+mapped to modern software development contexts for your convenience.
 """
 
 from __future__ import annotations
