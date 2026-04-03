@@ -139,8 +139,10 @@ def fetch_kp_for_date(dt: datetime) -> dict:
       1. Try the forecast product first — it contains ~7 days of observed
          data plus ~3 days of NOAA predictions.
       2. Fall back to the 3-hour historical product.
-      3. If *dt* is outside the range of ALL available data, return
-         kp=None.  Never silently substitute current readings.
+      3. If *dt* is close to the current moment (within 24 hours) and the
+         above sources have no data, fall back to ``fetch_current_kp()``.
+      4. If *dt* is outside the range of ALL available data and not close
+         to now, return kp=None.
 
     Returns the same dict shape as ``fetch_current_kp``.
     """
@@ -170,6 +172,10 @@ def fetch_kp_for_date(dt: datetime) -> dict:
         logger.warning("3-hour Kp feed failed: %s", exc)
 
     if not sources_tried:
+        # If the requested date is close to now, try real-time as last resort
+        now = datetime.now(timezone.utc)
+        if abs((dt - now).total_seconds()) < 86400:
+            return fetch_current_kp()
         return {
             "kp": None,
             "time_tag": dt.isoformat(),
@@ -178,6 +184,9 @@ def fetch_kp_for_date(dt: datetime) -> dict:
         }
 
     if not all_entries:
+        now = datetime.now(timezone.utc)
+        if abs((dt - now).total_seconds()) < 86400:
+            return fetch_current_kp()
         return {
             "kp": None,
             "time_tag": dt.isoformat(),
@@ -190,6 +199,10 @@ def fetch_kp_for_date(dt: datetime) -> dict:
     latest = all_entries[-1][0]
 
     if dt < earliest or dt > latest:
+        # If the requested date is close to now, fall back to real-time Kp
+        now = datetime.now(timezone.utc)
+        if abs((dt - now).total_seconds()) < 86400:  # within 24 hours
+            return fetch_current_kp()
         return {
             "kp": None,
             "time_tag": dt.isoformat(),

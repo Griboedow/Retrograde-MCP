@@ -771,7 +771,7 @@ def get_daily_briefing() -> str:
     now = _now_utc()
     statuses = get_all_planet_statuses(now)
     lunar = _compute_lunar_phase(now)
-    kp_data = fetch_current_kp()
+    kp_data = fetch_kp_for_date(now)
 
     retrograde = [s for s in statuses if s["status"] == "retrograde"]
     stationary = [s for s in statuses if s["status"] == "stationary"]
