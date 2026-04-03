@@ -305,10 +305,14 @@ def get_cosmic_risk_score(date: Optional[str] = None) -> str:
     phase_info = LUNAR_PHASES[lunar["phase_key"]]
     lunar_modifier = phase_info["risk_modifier"]
 
-    # Kp modifier
-    kp = kp_data["kp"] if kp_data["kp"] is not None else 0.0
-    kp_interp = kp_interpretation(kp)
-    kp_modifier = kp_interp["risk_modifier"]
+    # Kp modifier — only include when real data is available
+    kp = kp_data["kp"]
+    if kp is not None:
+        kp_interp = kp_interpretation(kp)
+        kp_modifier = kp_interp["risk_modifier"]
+    else:
+        kp_interp = None
+        kp_modifier = 0
 
     total = min(100, max(0, planet_score + lunar_modifier + kp_modifier))
     label = _risk_label(total)
@@ -332,7 +336,7 @@ def get_cosmic_risk_score(date: Optional[str] = None) -> str:
     lines.append(
         f"- Lunar phase ({LUNAR_PHASES[lunar['phase_key']]['name']}): **{lunar_modifier:+d}**"
     )
-    if kp_data["error"] is None:
+    if kp is not None and kp_interp is not None:
         lines.append(
             f"- Space weather (Kp={kp:.1f}, {kp_interp['level']}): **{kp_modifier:+d}**"
         )
@@ -457,15 +461,15 @@ def should_i_do_it(action: str, date: Optional[str] = None) -> str:
             f"The {phase_info['name']} {phase_info['emoji']} lunar phase is supportive."
         )
 
-    # Space weather
-    kp = kp_data["kp"] if kp_data["kp"] is not None else 0.0
-    if kp >= 5.0:
+    # Space weather — only factor in when real data is available
+    kp = kp_data["kp"]
+    if kp is not None and kp >= 5.0:
         kp_interp = kp_interpretation(kp)
         blockers.append(
             f"**Kp={kp:.1f}** ({kp_interp['level']}) — geomagnetic storm in progress. "
             "Mental clarity is compromised across the team."
         )
-    elif kp_data["error"] is not None:
+    elif kp is None:
         warnings.append(
             "Space weather data is not available for this date from NOAA SWPC. "
             "Re-check the Kp-index closer to the date."
@@ -636,15 +640,22 @@ def explain_incident(description: str) -> str:
         "",
     ]
 
-    # Kp contribution
-    kp = kp_data["kp"] if kp_data["kp"] is not None else 0.0
-    kp_interp = kp_interpretation(kp)
-    if kp >= 3.0:
+    # Kp contribution — only include when real data is available
+    kp = kp_data["kp"]
+    if kp is not None and kp >= 3.0:
+        kp_interp = kp_interpretation(kp)
         lines += [
             "## Geomagnetic Contribution",
             "",
             f"Kp-index was **{kp:.1f}** ({kp_interp['level']}) at the time of analysis. "
             f"{kp_interp['dev_note'].split('.')[0]}.",
+            "",
+        ]
+    elif kp is None:
+        lines += [
+            "## Geomagnetic Contribution",
+            "",
+            "Kp-index data is not available for this date from NOAA SWPC.",
             "",
         ]
 
@@ -767,12 +778,17 @@ def get_daily_briefing() -> str:
     direct = [s for s in statuses if s["status"] == "direct"]
 
     phase_info = LUNAR_PHASES[lunar["phase_key"]]
-    kp = kp_data["kp"] if kp_data["kp"] is not None else 0.0
-    kp_interp = kp_interpretation(kp)
+    kp = kp_data["kp"]
+    if kp is not None:
+        kp_interp = kp_interpretation(kp)
+        kp_risk_modifier = kp_interp["risk_modifier"]
+    else:
+        kp_interp = None
+        kp_risk_modifier = 0
 
     # Compute risk using the shared helper for consistency with get_cosmic_risk_score
     planet_score = _planet_risk_score(statuses)
-    total_risk = min(100, max(0, planet_score + phase_info["risk_modifier"] + kp_interp["risk_modifier"]))
+    total_risk = min(100, max(0, planet_score + phase_info["risk_modifier"] + kp_risk_modifier))
     risk_label = _risk_label(total_risk)
 
     lines = [
@@ -806,11 +822,25 @@ def get_daily_briefing() -> str:
         f"**{phase_info['name']}** — {lunar['illumination'] * 100:.0f}% illumination",
         f"{phase_info['dev_note'].split('.')[0]}.",
         "",
-        f"## {kp_interp['emoji']} Space Weather",
-        "",
-        f"**Kp-index:** {kp:.1f} — {kp_interp['level']}",
-        f"{kp_interp['dev_note'].split('.')[0]}.",
-        "",
+    ]
+
+    if kp is not None and kp_interp is not None:
+        lines += [
+            f"## {kp_interp['emoji']} Space Weather",
+            "",
+            f"**Kp-index:** {kp:.1f} — {kp_interp['level']}",
+            f"{kp_interp['dev_note'].split('.')[0]}.",
+            "",
+        ]
+    else:
+        lines += [
+            "## 🛰️ Space Weather",
+            "",
+            "**Kp-index:** N/A — NOAA SWPC data is currently unavailable.",
+            "",
+        ]
+
+    lines += [
         "## 📋 Recommendation for Today",
         "",
     ]

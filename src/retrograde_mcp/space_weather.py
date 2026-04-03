@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # NOAA SWPC endpoints
 _KP_1MIN_URL = "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json"
 _KP_3HOUR_URL = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
+_KP_FORECAST_URL = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json"
 
 _REQUEST_TIMEOUT = 10  # seconds
 
@@ -87,53 +88,96 @@ def fetch_current_kp() -> dict:
     }
 
 
+def _fetch_kp_entries(url: str) -> list[tuple[datetime, float, str]]:
+    """
+    Fetch and parse Kp entries from a NOAA SWPC JSON endpoint.
+
+    Handles both the 3-hour historical product (list-of-lists with header)
+    and the forecast product (list-of-dicts with 'observed'/'predicted' flag).
+
+    Returns a list of (datetime, kp_value, source_label) tuples, or raises.
+    """
+    resp = requests.get(url, timeout=_REQUEST_TIMEOUT)
+    resp.raise_for_status()
+    data = resp.json()
+
+    if not isinstance(data, list) or not data:
+        return []
+
+    entries: list[tuple[datetime, float, str]] = []
+
+    # Forecast product: list of dicts with 'time_tag', 'kp', 'observed'
+    if isinstance(data[0], dict):
+        for row in data:
+            try:
+                tag = row["time_tag"]
+                kp_val = float(row["kp"])
+                row_dt = datetime.fromisoformat(tag).replace(tzinfo=timezone.utc)
+                obs = row.get("observed", "unknown")
+                entries.append((row_dt, kp_val, obs))
+            except (ValueError, TypeError, KeyError):
+                continue
+    # 3-hour historical product: list-of-lists, first row is header
+    elif isinstance(data[0], list):
+        for row in data[1:]:
+            try:
+                tag = str(row[0])
+                kp_val = float(row[1])
+                row_dt = datetime.fromisoformat(tag).replace(tzinfo=timezone.utc)
+                entries.append((row_dt, kp_val, "observed"))
+            except (ValueError, TypeError, IndexError):
+                continue
+
+    return entries
+
+
 def fetch_kp_for_date(dt: datetime) -> dict:
     """
-    Fetch the Kp-index closest to *dt* from NOAA SWPC historical data.
+    Fetch the Kp-index closest to *dt* from NOAA SWPC data.
 
-    The 3-hour product typically covers the last ~7 days.  If *dt* falls
-    within the available data range, the closest 3-hour reading is returned.
-    If *dt* is outside the range (too far in the past or in the future),
-    returns kp=None with an explanatory error.
+    Strategy:
+      1. Try the forecast product first — it contains ~7 days of observed
+         data plus ~3 days of NOAA predictions.
+      2. Fall back to the 3-hour historical product.
+      3. If *dt* is outside the range of ALL available data, return
+         kp=None.  Never silently substitute current readings.
 
     Returns the same dict shape as ``fetch_current_kp``.
     """
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
 
+    all_entries: list[tuple[datetime, float, str]] = []
+    sources_tried: list[str] = []
+
+    # Try forecast product (includes observed + predicted, ~3-day lookahead)
     try:
-        resp = requests.get(_KP_3HOUR_URL, timeout=_REQUEST_TIMEOUT)
-        resp.raise_for_status()
-        data = resp.json()
+        all_entries.extend(_fetch_kp_entries(_KP_FORECAST_URL))
+        sources_tried.append("forecast")
+    except Exception as exc:
+        logger.warning("Kp forecast feed failed: %s", exc)
+
+    # Try 3-hour historical product (wider historical window)
+    try:
+        hist_entries = _fetch_kp_entries(_KP_3HOUR_URL)
+        # Merge, preferring entries we already have for the same timestamps
+        existing_times = {e[0] for e in all_entries}
+        for entry in hist_entries:
+            if entry[0] not in existing_times:
+                all_entries.append(entry)
+        sources_tried.append("3-hour")
     except Exception as exc:
         logger.warning("3-hour Kp feed failed: %s", exc)
+
+    if not sources_tried:
         return {
             "kp": None,
             "time_tag": dt.isoformat(),
             "source": "unavailable",
-            "error": f"Could not reach NOAA SWPC: {exc}",
+            "error": "Could not reach NOAA SWPC.",
         }
 
-    if not isinstance(data, list) or len(data) < 2:
-        return {
-            "kp": None,
-            "time_tag": dt.isoformat(),
-            "source": "unavailable",
-            "error": "NOAA SWPC returned unexpected data format.",
-        }
-
-    # Parse all entries into (datetime, kp) pairs
-    entries: list[tuple[datetime, float]] = []
-    for row in data[1:]:
-        try:
-            tag = row["time_tag"] if isinstance(row, dict) else str(row[0])
-            kp_val = float(row["Kp"] if isinstance(row, dict) else row[1])
-            row_dt = datetime.fromisoformat(tag).replace(tzinfo=timezone.utc)
-            entries.append((row_dt, kp_val))
-        except (ValueError, TypeError, KeyError, IndexError):
-            continue
-
-    if not entries:
+    if not all_entries:
         return {
             "kp": None,
             "time_tag": dt.isoformat(),
@@ -141,9 +185,9 @@ def fetch_kp_for_date(dt: datetime) -> dict:
             "error": "No parseable Kp entries found in NOAA data.",
         }
 
-    # Check if dt falls within the data range (with a small tolerance)
-    earliest = entries[0][0]
-    latest = entries[-1][0]
+    all_entries.sort(key=lambda e: e[0])
+    earliest = all_entries[0][0]
+    latest = all_entries[-1][0]
 
     if dt < earliest or dt > latest:
         return {
@@ -154,16 +198,25 @@ def fetch_kp_for_date(dt: datetime) -> dict:
                 f"Date {dt.strftime('%Y-%m-%d')} is outside the available NOAA SWPC "
                 f"data range ({earliest.strftime('%Y-%m-%d')} to "
                 f"{latest.strftime('%Y-%m-%d')}). "
-                "Kp-index has been excluded from the calculation."
+                "Kp-index forecast is not available this far in the future."
             ),
         }
 
     # Find the entry closest to dt
-    best_dt, best_kp = min(entries, key=lambda e: abs((e[0] - dt).total_seconds()))
+    best_dt, best_kp, best_obs = min(
+        all_entries, key=lambda e: abs((e[0] - dt).total_seconds())
+    )
+    if best_obs == "predicted":
+        source = "NOAA SWPC Kp forecast (predicted)"
+    elif best_obs == "estimated":
+        source = "NOAA SWPC Kp (estimated)"
+    else:
+        source = "NOAA SWPC 3-hour Kp (observed)"
+
     return {
         "kp": best_kp,
         "time_tag": best_dt.isoformat(),
-        "source": "NOAA SWPC 3-hour Kp (historical)",
+        "source": source,
         "error": None,
     }
 
