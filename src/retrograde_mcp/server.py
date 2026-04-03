@@ -339,7 +339,7 @@ def get_cosmic_risk_score() -> str:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def should_i_do_it(action: str) -> str:
+def should_i_do_it(action: str, date: Optional[str] = None) -> str:
     """
     Get a yes/no astrological recommendation for a specific action.
 
@@ -353,8 +353,16 @@ def should_i_do_it(action: str) -> str:
 
     Args:
         action: The action you are considering. Be specific.
+        date: Optional date to evaluate (ISO 8601 format, e.g. "2026-03-10").
+              If not specified, uses the current date/time.
     """
-    now = _now_utc()
+    if date is not None:
+        try:
+            now = datetime.fromisoformat(date).replace(tzinfo=timezone.utc)
+        except ValueError:
+            return f"Invalid date format: '{date}'. Please use ISO 8601 (e.g. 2026-03-10)."
+    else:
+        now = _now_utc()
     statuses = get_all_planet_statuses(now)
     lunar = _compute_lunar_phase(now)
     kp_data = fetch_current_kp()
@@ -473,7 +481,7 @@ def should_i_do_it(action: str) -> str:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def explain_incident(description: str) -> str:
+def explain_incident(description: str, date: Optional[str] = None) -> str:
     """
     Receive an incident or outage description and return a rigorous astrological
     root-cause analysis.
@@ -484,8 +492,16 @@ def explain_incident(description: str) -> str:
 
     Args:
         description: A description of the incident, outage, or anomaly.
+        date: Optional date to evaluate (ISO 8601 format, e.g. "2026-03-10").
+              If not specified, uses the current date/time.
     """
-    now = _now_utc()
+    if date is not None:
+        try:
+            now = datetime.fromisoformat(date).replace(tzinfo=timezone.utc)
+        except ValueError:
+            return f"Invalid date format: '{date}'. Please use ISO 8601 (e.g. 2026-03-10)."
+    else:
+        now = _now_utc()
     statuses = get_all_planet_statuses(now)
     lunar = _compute_lunar_phase(now)
     kp_data = fetch_current_kp()
@@ -879,6 +895,13 @@ def retrograde_history(planet: str = "mercury", years: int = 3) -> str:
 # ---------------------------------------------------------------------------
 
 def main():
+    import sys
+
+    if "--version" in sys.argv or "-V" in sys.argv:
+        from . import __version__
+        print(f"retrograde-mcp {__version__}")
+        return
+
     mcp.run()
 
 
